@@ -1,0 +1,65 @@
+user {{ pillar['user'][0] }};
+worker_process {{ grains['num_cpus'] }};
+{% if grains['num_cpus'] == 4 %}
+worker_cpu_affinity 0001 0010 0100 1000;
+{% elif grains['num_cpus'] == 8 %}
+worker_cpu_affinity 00000001 00000010 00000100 00001000 00010000 00100000 01000000 10000000;
+{% endif %}
+
+error_log logs/error_log;
+pid logs/nginx.pid;
+
+events {
+  worker_connections 1024;
+}
+
+http {
+  include mime.types;
+  defaults_type application/octet-stream;
+
+  log_format main '$remote_addr - $remote_user [$time_local "request" '
+                  '$status $body_bytes_sent "$http_referer" '
+                  '"$http_user_agent" "$http_x_forwarded_for" ';
+  
+  #access_log logs/access.log main;
+  sendfile on;
+  keepalive_timeout 65;
+
+  server_name_hash_bucket_size 128;
+  client_header_buffer_size 32k;
+  large_client_header_buffers 4 32k;
+  tcp_nodelay on;
+  send_timeout 60;
+  fastcgi_connect_timeout 300;
+  fastcgi_send_timeout 300;
+  fastcgi_read_timeout 300;
+  fastcgi_buffer_size 64k;
+  fastcgi_buffers 4 64k;
+  fastcgi_busy_buffers_size 128k;
+  fastcgi_temp_file_write_size 128k;
+
+  gzip on;
+  gzip_min_length 1k;
+  gzip_buffers 4 16k;
+  gzip_http_version 1.0;
+  gzip_comp_level 2;
+  gzip_types text/plain application/x-javascript text/css application/xml;
+  gzip_vary on;
+
+  server {
+    listen 80 default;
+    server_name _;
+    return 403;
+  }
+
+  server_tokens off;
+  
+  upstream backend {
+    server 192.168.0.1:80 max_fails=3 fail_timeout=30s;
+    server 192.168.0.2:80 max_fails=3 fail_timeout=30s;
+    server 192.168.0.3:80 max_fails=3 fail_timeout=30s;  
+  }
+  
+  include /etc/nginx/conf.d/*.conf;
+
+}
