@@ -1,0 +1,44 @@
+[1] 	Install salt-master on Salt Master Host.
+# install from EPEL
+
+yum --enablerepo=epel -y install salt-master
+
+systemctl start salt-master
+systemctl enable salt-master
+
+[2] 	On Salt Master Server, If Firewalld is running, allow related ports.
+
+firewall-cmd --add-port={4505/tcp,4506/tcp} --permanent
+firewall-cmd --reload
+
+[3] 	Install salt-minion on Salt Minion Host.
+# install from EPEL
+
+yum --enablerepo=epel -y install salt-minion
+
+vi /etc/salt/minion
+# line 16: uncomment and specify Salt Master Server
+
+master: 
+ - dlp1.zzb.hj
+ - dlp2.zzb.hj
+
+Master Keys
+
+在建立多Master的配置中，主要的一点就是所有的Master使用同样的private key. 这些key将在Master第一次启动时自动生成。 因此在多Master环境建立时，需要从原始的(original) Master上拷贝其private key至第二个Master以提供它启动时自动生成的那个, 以此类推.
+
+Master的private key存储在Master本地的 pki_dir 目录下. 默认的目录是 /etc/salt/pki/master/master.pem 和/etc/salt/pki/master/master.pub两个文件. 将该key拷贝到新增的master上. 需要注意的是，在拷贝的时候，需要确保新增的master上并没有minion连接进来.
+
+systemctl start salt-minion
+systemctl enable salt-minion
+
+[4] 	When Salt Minion initially starts, he sends public-key for authentication to Salt Master. If Salt Master accepts the key, Salt Master and Salt Minion can connects each other.
+# show the list of keys
+
+salt-key -L
+
+# permit all keys with "A" option
+
+salt-key -A
+
+salt "*" test.ping
